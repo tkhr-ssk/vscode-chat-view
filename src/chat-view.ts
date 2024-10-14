@@ -1,9 +1,28 @@
 import * as vscode from 'vscode';
+import AiService from './gpt';
 
 export default class ChatViewProvider implements vscode.WebviewViewProvider {
     private webView?: vscode.WebviewView;
+    private aiService?: AiService;
 
     constructor(private context: vscode.ExtensionContext) {
+        const configuration = vscode.workspace.getConfiguration("chat-view");
+        let apiKey = configuration.get("apiKey") as string;
+        if (!apiKey) {
+            vscode.window.showErrorMessage('Failed to load API key from configuration.');
+            return;
+        }
+        this.aiService = new AiService(apiKey);
+    }
+
+    private loadApiKey() {
+        const configuration = vscode.workspace.getConfiguration("chat-view");
+        let apiKey = configuration.get("apiKey") as string;
+        if (!apiKey) {
+            vscode.window.showErrorMessage('Failed to load API key from configuration.');
+            return;
+        }
+        this.aiService = new AiService(apiKey);
     }
 
     public resolveWebviewView(
@@ -18,6 +37,8 @@ export default class ChatViewProvider implements vscode.WebviewViewProvider {
                 this.context.extensionUri
             ]
         };
+        const scriptUri = webviewView.webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'media', 'main.js'));
+        const stylesMainUri = webviewView.webview.asWebviewUri(vscode.Uri.joinPath(this.context.extensionUri, 'media', 'main.css'));
         webviewView.webview.html = `
 <!DOCTYPE html>
 <html lang="ja">
@@ -25,61 +46,7 @@ export default class ChatViewProvider implements vscode.WebviewViewProvider {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Conversation</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-        }
-        .chat-container {
-            width: 100%;
-            margin: auto;
-            border: 1px solid var(--vscode-panel-border);
-            border-radius: 10px;
-            overflow: hidden;
-        }
-        .messages {
-            height: 400px;
-            overflow-y: scroll;
-            padding: 10px;
-            border-bottom: 1px solid var(--vscode-panel-border);
-        }
-        .message {
-            margin: 10px 0;
-        }
-        .user {
-            text-align: right;
-        }
-        .bot {
-            text-align: left;
-        }
-        .input-area {
-            display: flex;
-            padding: 10px;
-        }
-        .input-area textarea {
-            flex: 1;
-            min-width: 0;
-            padding: 10px;
-            border-radius: 5px;
-            border: 1px solid var(--vscode-input-border);
-            background-color: var(--vscode-editor-background);
-            color: var(--vscode-editor-foreground);
-            resize: none; /* サイズ変更を無効化 */
-            overflow: hidden; /* スクロールバーを非表示 */
-        }
-        .input-area button {
-            background-color: var(--vscode-button-background);
-            color: var(--vscode-button-foreground);
-            border: 1px solid var(--vscode-button-border);
-            padding: 10px;
-            margin-left: 10px;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-        .input-area button:hover {
-        }
-    </style>
+    <link href="${stylesMainUri}" rel="stylesheet">
 </head>
 <body>
 
@@ -87,42 +54,44 @@ export default class ChatViewProvider implements vscode.WebviewViewProvider {
     <div class="messages" id="messages"></div>
     <div class="input-area">
         <textarea id="user-input" placeholder="input..." rows="1" oninput="autoResize(this)"></textarea>
-        <button onclick="sendMessage()">send</button>
+        <button id="send-button">send</button>
     </div>
 </div>
-
-<script>
-    function sendMessage() {
-        const input = document.getElementById('user-input');
-        const messageContainer = document.getElementById('messages');
-        
-        // ユーザーのメッセージを表示
-        const userMessage = document.createElement('div');
-        userMessage.className = 'message user';
-        userMessage.textContent = input.value;
-        messageContainer.appendChild(userMessage);
-        
-        // ボットの応答を表示（ここでは簡単なエコー）
-        const botMessage = document.createElement('div');
-        botMessage.className = 'message bot';
-        botMessage.textContent = "ボットの応答: " + input.value;
-        messageContainer.appendChild(botMessage);
-        
-        // 入力フィールドをクリア
-        input.value = '';
-        input.style.height = 'auto'; // 高さをリセット
-        
-        // スクロールを最下部に
-        messageContainer.scrollTop = messageContainer.scrollHeight;
-    }
-
-    function autoResize(textarea) {
-        textarea.style.height = 'auto'; // 高さを一度リセット
-        textarea.style.height = (textarea.scrollHeight - 20) + 'px'; // 新しい高さを設定(padding分減算)
-    }
-</script>
-
+<script src="${scriptUri}"></script>
 </body>
 </html>`;
+
+        webviewView.webview.onDidReceiveMessage(async data => {
+            console.log(data);
+            switch (data.type) {
+                case 'sendMessage':
+                    this.sendApiRequest(data.value, { command: "freeText" });
+                    break;
+                default:
+                    break;
+            }
+        });
     }
+
+    public async sendApiRequest(prompt: string, options: { command: string, code?: string, previousAnswer?: string, language?: string; }) {
+        let response;
+        let messageHistory = [];
+        messageHistory.push (
+            { role: "user", content: prompt }
+        );
+        if(!this.aiService){
+            this.loadApiKey();
+        }
+        const info = await this.aiService?.gpt(messageHistory);
+        console.log(info);
+        response = info?.text;
+        this.sendMessage({ type: 'response', value: response });
+    }
+
+    public sendMessage(message: any) {
+        if (this.webView) {
+            this.webView?.webview.postMessage(message);
+        }
+    }
+
 }

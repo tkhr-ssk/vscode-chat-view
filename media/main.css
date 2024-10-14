@@ -1,0 +1,51 @@
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+}
+.chat-container {
+    width: 100%;
+    margin: auto;
+    border: 1px solid var(--vscode-panel-border);
+    border-radius: 10px;
+    overflow: hidden;
+}
+.messages {
+    height: 400px;
+    overflow-y: scroll;
+    padding: 10px;
+    border-bottom: 1px solid var(--vscode-panel-border);
+}
+.message {
+    margin: 10px 0;
+}
+.user {
+    text-align: right;
+}
+.bot {
+    text-align: left;
+}
+.input-area {
+    display: flex;
+    padding: 10px;
+}
+.input-area textarea {
+    flex: 1;
+    min-width: 0;
+    padding: 10px;
+    border-radius: 5px;
+    border: 1px solid var(--vscode-input-border);
+    background-color: var(--vscode-editor-background);
+    color: var(--vscode-editor-foreground);
+    resize: none; /* サイズ変更を無効化 */
+    overflow: hidden; /* スクロールバーを非表示 */
+}
+.input-area button {
+    background-color: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+    border: 1px solid var(--vscode-button-border);
+    padding: 10px;
+    margin-left: 10px;
+    border-radius: 5px;
+    cursor: pointer;
+}
