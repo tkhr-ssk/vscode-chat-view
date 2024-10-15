@@ -18,7 +18,8 @@ function addResponse(response) {
     // ボットの応答を表示（ここでは簡単なエコー）
     const botMessage = document.createElement('div');
     botMessage.className = 'message bot';
-    botMessage.textContent = "AI回答: " + response;
+    //botMessage.textContent = "AI回答: " + response;
+    botMessage.innerHTML = marked.parse(response);
     messageContainer.appendChild(botMessage);
     
     // スクロールを最下部に
@@ -26,10 +27,11 @@ function addResponse(response) {
 }
 
 function autoResize(textarea) {
+    const maxHeight = 300;
     textarea.style.height = 'auto'; // 高さを一度リセット
-    textarea.style.height = (textarea.scrollHeight - 20) + 'px'; // 新しい高さを設定(padding分減算)
+    const newHeight = textarea.scrollHeight - 20; // 新しい高さを計算 (padding分減算)
+    textarea.style.height = (newHeight > maxHeight ? maxHeight : newHeight) + 'px';
 }
-
 
 (function () {
     const vscode = acquireVsCodeApi();
