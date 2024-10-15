@@ -44,6 +44,18 @@
           "default": null,
           "markdownDescription": "OpenAI API key. [Get your API Key from OpenAI](https://platform.openai.com/api-keys). \n\n**Please enable OpenAI API Key method to use this setting.**",
           "order": 1
+        },
+        "chat-view.endpoint": {
+          "type": "string",
+          "default": null,
+          "markdownDescription": "Endpoint for OpenAI API. Ensure the API Key method is enabled.",
+          "order": 2
+        },
+        "chat-view.apiVersion": {
+            "type": "string",
+            "default": null,
+            "markdownDescription": "API version for OpenAI services. Ensure the API Key method is enabled.",
+            "order": 3
         }
       }
     }

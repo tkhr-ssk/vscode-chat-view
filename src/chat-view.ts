@@ -4,15 +4,10 @@ import AiService from './gpt';
 export default class ChatViewProvider implements vscode.WebviewViewProvider {
     private webView?: vscode.WebviewView;
     private aiService?: AiService;
+    private messageHistory: any[] = [];
 
     constructor(private context: vscode.ExtensionContext) {
-        const configuration = vscode.workspace.getConfiguration("chat-view");
-        let apiKey = configuration.get("apiKey") as string;
-        if (!apiKey) {
-            vscode.window.showErrorMessage('Failed to load API key from configuration.');
-            return;
-        }
-        this.aiService = new AiService(apiKey);
+        this.loadApiKey();
     }
 
     private loadApiKey() {
@@ -22,7 +17,9 @@ export default class ChatViewProvider implements vscode.WebviewViewProvider {
             vscode.window.showErrorMessage('Failed to load API key from configuration.');
             return;
         }
-        this.aiService = new AiService(apiKey);
+        let endpoint = configuration.get("endpoint") as string;
+        let apiVersion = configuration.get("apiVersion") as string;
+        this.aiService = new AiService(apiKey, endpoint, apiVersion);
     }
 
     public resolveWebviewView(
@@ -54,8 +51,9 @@ export default class ChatViewProvider implements vscode.WebviewViewProvider {
 <div class="chat-container">
     <div class="messages" id="messages"></div>
     <div class="input-area">
-        <textarea id="user-input" placeholder="input..." rows="1" oninput="autoResize(this)"></textarea>
+        <textarea id="user-input" placeholder="input..." rows="1"></textarea>
         <button id="send-button">send</button>
+        <button id="clear-button">Clear History</button>
     </div>
 </div>
 <script src="${scriptUri}"></script>
@@ -68,6 +66,9 @@ export default class ChatViewProvider implements vscode.WebviewViewProvider {
                 case 'sendMessage':
                     this.sendApiRequest(data.value, { command: "freeText" });
                     break;
+                case 'clearHistory':
+                    this.clearMessageHistory();
+                    break;
                 default:
                     break;
             }
@@ -76,16 +77,20 @@ export default class ChatViewProvider implements vscode.WebviewViewProvider {
 
     public async sendApiRequest(prompt: string, options: { command: string, code?: string, previousAnswer?: string, language?: string; }) {
         let response;
-        let messageHistory = [];
-        messageHistory.push (
+        this.messageHistory.push (
             { role: "user", content: prompt }
         );
         if(!this.aiService){
             this.loadApiKey();
         }
-        const info = await this.aiService?.gpt(messageHistory);
+        const info = await this.aiService?.gpt(this.messageHistory);
         console.log(info);
         response = info?.text;
+        if (info?.text){
+            this.messageHistory.push (
+                { role: "assistant", content: info.text }
+            );
+        }
         this.sendMessage({ type: 'response', value: response });
     }
 
@@ -93,6 +98,12 @@ export default class ChatViewProvider implements vscode.WebviewViewProvider {
         if (this.webView) {
             this.webView?.webview.postMessage(message);
         }
+    }
+
+    private clearMessageHistory() {
+        this.messageHistory = [];
+        vscode.window.showInformationMessage('Message history cleared.'); // ユーザーに通知
+        this.sendMessage({ type: 'historyCleared' }); // クライアントに通知（オプション）
     }
 
 }
